@@ -20,41 +20,65 @@ class ModelInference:
             verbose=False
         )
         
-        defects = []
-        result = results[0]  # We process one image at a time
-        
-        # Process detections
-        if result.boxes:
-            for box in result.boxes:
-                # box.xyxy is a tensor, need to convert to list
-                coords = box.xyxy[0].tolist()
-                conf = float(box.conf[0])
-                cls_id = int(box.cls[0])
-                cls_name = result.names[cls_id]
-                
-                defects.append(BoundingBox(
-                    x1=coords[0],
-                    y1=coords[1],
-                    x2=coords[2],
-                    y2=coords[3],
-                    confidence=conf,
-                    class_id=cls_id,
-                    class_name=cls_name
-                ))
-
+        result = results[0]
         inference_time = time.time() - start_time
         
-        # Determine verdict
-        # If any defects are found, verdict is FAIL. Or specific logic?
-        # Requirement: "defects include 'tear', 'label_error', 'foreign_object'"
-        # Assuming finding any of these is a FAIL.
-        verdict = "FAIL" if len(defects) > 0 else "PASS"
+        defects = []
+        verdict = "FAIL" # Default fallback
+        model_name = str(self.model.model.names) if self.model.model else "unknown"
+
+        # Check task type
+        task = result.orig_shape # simplistic check, or check model.task
+        # Ultralytics result object has .probs for classification and .boxes for detection
+        
+        if result.probs is not None:
+            # CLASSIFICATION MODE
+            top1_index = result.probs.top1
+            top1_conf = result.probs.top1conf.item()
+            class_name = result.names[top1_index]
+            
+            # Logic: If class == 'ok' and confidence > 0.8 -> PASS
+            # Note: User request says "class == 'ok' and confidence > 0.8". 
+            # We assume threshold 0.8 is hardcoded or should be settings.CONFIDENCE_THRESHOLD? 
+            # User said "confidence > 0.8", I will use 0.8 explicitly or settings if specifically configured for cls.
+            # Using 0.8 as requested.
+            
+            if class_name == 'ok' and top1_conf > 0.8:
+                verdict = "PASS"
+            else:
+                verdict = "FAIL"
+                
+            # For classification, we don't have bounding boxes, but we can return the top result in defects for info?
+            # Or just leave defects empty. Creating a dummy box might be confusing.
+            # We will leave defects empty for now as per schema.
+            
+        else:
+            # DETECTION MODE (original logic)
+            if result.boxes:
+                for box in result.boxes:
+                    coords = box.xyxy[0].tolist()
+                    conf = float(box.conf[0])
+                    cls_id = int(box.cls[0])
+                    cls_name = result.names[cls_id]
+                    
+                    defects.append(BoundingBox(
+                        x1=coords[0],
+                        y1=coords[1],
+                        x2=coords[2],
+                        y2=coords[3],
+                        confidence=conf,
+                        class_id=cls_id,
+                        class_name=cls_name
+                    ))
+
+            # Verdict logic for detection
+            verdict = "FAIL" if len(defects) > 0 else "PASS"
 
         return PredictionResult(
             verdict=verdict,
             defects=defects,
             inference_time=inference_time,
-            model_name=str(self.model.model.names) if self.model.model else "unknown"  # simplified name retrieval
+            model_name=model_name
         )
 
 # Global instance

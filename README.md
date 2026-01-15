@@ -76,5 +76,44 @@ GFB-Vision-Eye/
 Configuration is managed via environment variables (see `.env.example`). Key variables:
 
 - `MODEL_PATH`: Path to the YOLO .pt file (default: `models/yolo11n.pt`).
-- `CONFIDENCE_THRESHOLD`: Minimum confidence score for detection (default: `0.5`).
 - `API_V1_STR`: API version prefix (default: `/api/v1`).
+
+## Training Pipeline
+
+We support training YOLO Classification models (YOLO11-cls).
+
+### 1. Prepare Data
+
+Structure your raw data with folders named after classes (e.g., Russian or English names).
+Run the preparation script to split (80/20) and format:
+
+```bash
+python scripts/prepare_data.py --source /path/to/raw/data --output datasets/gfb-food-cls
+```
+
+Supported classes mapping:
+- `Целая упаковка` -> `ok`
+- `Рваная упаковка` -> `tear`
+- `Плохая этикетка` -> `label_error`
+- `Предмет внутри` -> `foreign_object`
+
+### 2. Train Model
+
+Run the training script (defaults to 10 epochs, imgsz 224):
+
+```bash
+python scripts/train_model.py --data datasets/gfb-food-cls --epochs 10
+```
+
+The best model will be saved to `models/gfb_classifier_v1.pt`.
+
+### 3. Use New Model
+
+Update your `.env` to use the new classifier:
+
+```bash
+MODEL_PATH="models/gfb_classifier_v1.pt"
+CONFIDENCE_THRESHOLD=0.8 # Recommended for classification
+```
+
+The API will automatically switch to classification mode (returning PASS/FAIL based on 'ok' class probability).
