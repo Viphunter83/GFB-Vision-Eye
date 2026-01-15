@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM ultralytics/ultralytics:latest-python
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1

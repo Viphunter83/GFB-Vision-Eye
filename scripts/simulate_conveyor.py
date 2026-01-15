@@ -17,7 +17,8 @@ except ImportError:
     sys.exit(1)
 
 # Configuration
-API_URL = "http://localhost:8080/api/v1/predict"
+import os
+API_URL = os.getenv("API_URL", "http://localhost:8080/api/v1/predict")
 SEARCH_DIRS = [
     "dataset_raw",
     "Плохая этикетка",
