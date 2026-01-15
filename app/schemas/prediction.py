@@ -15,6 +15,8 @@ class PredictionResult(BaseModel):
     defects: List[BoundingBox] = []
     inference_time: float = Field(..., description="Inference time in seconds")
     model_name: str
+    predicted_class: Optional[str] = None
+    confidence: Optional[float] = None
     
 class ErrorResponse(BaseModel):
     detail: str

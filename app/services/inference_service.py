@@ -26,6 +26,9 @@ class ModelInference:
         defects = []
         verdict = "FAIL" # Default fallback
         model_name = str(self.model.model.names) if self.model.model else "unknown"
+        
+        predicted_class = None
+        confidence = None
 
         # Check task type
         task = result.orig_shape # simplistic check, or check model.task
@@ -36,6 +39,9 @@ class ModelInference:
             top1_index = result.probs.top1
             top1_conf = result.probs.top1conf.item()
             class_name = result.names[top1_index]
+            
+            predicted_class = class_name
+            confidence = top1_conf
             
             # Logic: If class == 'ok' and confidence > 0.8 -> PASS
             # Note: User request says "class == 'ok' and confidence > 0.8". 
@@ -78,7 +84,9 @@ class ModelInference:
             verdict=verdict,
             defects=defects,
             inference_time=inference_time,
-            model_name=model_name
+            model_name=model_name,
+            predicted_class=predicted_class,
+            confidence=confidence
         )
 
 # Global instance
