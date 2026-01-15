@@ -34,6 +34,11 @@ async def healthcheck():
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+@app.get("/")
+async def root():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/docs")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host=settings.HOST, port=settings.PORT, reload=settings.DEBUG)
