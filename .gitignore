@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# MacOS
+.DS_Store
+
+# YOLO / ML Data
+runs/
+datasets/
+models/*.pt
+
+# Raw Data (Russian folder names)
+Целая упаковка/
+Рваная упаковка/
+Плохая этикетка/
+Предмет внутри/
+
+# Logs
+*.log

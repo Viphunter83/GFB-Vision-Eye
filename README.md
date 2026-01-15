@@ -117,3 +117,23 @@ CONFIDENCE_THRESHOLD=0.8 # Recommended for classification
 ```
 
 The API will automatically switch to classification mode (returning PASS/FAIL based on 'ok' class probability).
+
+## Scalability & Microservices Strategy
+
+Since this project follows the **Microservices** pattern, we recommend deploying separate containers for different production lines or products. This ensures isolation and allows using specialized models for each product type.
+
+### Example: Multi-Line Deployment
+
+**Line 1: Burgers**
+- Model: `models/burger_v1.pt`
+- Port: `8080`
+```bash
+docker run -d -p 8080:8000 -e MODEL_PATH="models/burger_v1.pt" gfb-vision-eye
+```
+
+**Line 2: Salads**
+- Model: `models/salad_v1.pt`
+- Port: `8081`
+```bash
+docker run -d -p 8081:8000 -e MODEL_PATH="models/salad_v1.pt" gfb-vision-eye
+```
