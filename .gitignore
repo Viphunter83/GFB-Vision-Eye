@@ -20,3 +20,6 @@ models/*.pt
 
 # Logs
 *.log
+
+# Simulation Results
+simulation_results/

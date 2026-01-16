@@ -9,11 +9,13 @@ from typing import List, Optional
 
 try:
     import httpx
+    import cv2
+    import numpy as np
     from rich.console import Console
     from rich.table import Table
     from rich import print as rprint
 except ImportError:
-    print("Please install required packages: pip install rich httpx")
+    print("Please install required packages: pip install rich httpx opencv-python-headless")
     sys.exit(1)
 
 # Configuration
@@ -62,6 +64,12 @@ async def simulate_conveyor(num_items: int = 10):
     rprint(f"[bold blue]Starting simulation with {len(selected_images)} items...[/bold blue]")
     rprint("-" * 50)
 
+    # Setup Results Directory
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    results_dir = Path(f"simulation_results/{timestamp}")
+    results_dir.mkdir(parents=True, exist_ok=True)
+    rprint(f"Saving evidence to: [blue]{results_dir}[/blue]")
+
     stats = {
         "total": 0,
         "pass": 0,
@@ -93,17 +101,74 @@ async def simulate_conveyor(num_items: int = 10):
             # Adjusting based on potential response format. 
             # Usually: {"verdict": "PASS" | "FAIL", "confidence": float, "class": str}
             
-            verdict = result.get("verdict", "UNKNOWN")
-            confidence = result.get("confidence", 0.0)
+            # Verdict logic with local override
+            server_verdict = result.get("verdict", "UNKNOWN")
+            confidence = result.get("confidence", 0.0) or 0.0
             defect_class = result.get("predicted_class", "N/A")
             
-            if verdict == "PASS":
+            # Local override logic (User requirement: PASS if conf > 0.5 for 'ok')
+            final_verdict = server_verdict
+            color = (0, 0, 255) # Red for FAIL
+            status_text = f"FAIL | {defect_class} | {confidence:.2f}"
+            
+            if defect_class == "ok":
+                if confidence > 0.8:
+                    final_verdict = "PASS"
+                    color = (0, 255, 0) # Green
+                    status_text = f"PASS | {defect_class} | {confidence:.2f}"
+                elif confidence > 0.5:
+                    final_verdict = "WARNING" # Treated as PASS locally but visual warning or just lower threshold PASS
+                    # User asked to lower threshold to 0.5 for PASS OR use yellow.
+                    # Let's treat it as PASS with Yellow indication if between 0.5 and 0.8
+                    color = (0, 255, 255) # Yellow (BGR: 0, 255, 255) -> actually Yellow is (0, 255, 255) in BGR? No, Yellow is R+G = (0, 255, 255) is Cyan. Yellow is (0, 255, 255)? 
+                    # RGB Yellow is (255, 255, 0). OpenCV uses BGR. So Yellow is (0, 255, 255). Wait.
+                    # Blue=0, Green=255, Red=255.
+                    color = (0, 255, 255) 
+                    status_text = f"PASS (LOW CONF) | {defect_class} | {confidence:.2f}"
+                    # Count as PASS for stats
+                    final_verdict = "PASS" 
+                else:
+                    final_verdict = "FAIL"
+                    status_text = f"FAIL (LOW CONF) | {defect_class} | {confidence:.2f}"
+
+            # Update stats based on local final_verdict
+            if final_verdict == "PASS":
                 stats["pass"] += 1
-                rprint(f"✅ Batch {batch_id[:8]}...: [green]OK[/green] | Time: {latency:.0f}ms | Conf: {confidence:.2f}")
+                rprint(f"✅ Batch {batch_id[:8]}...: [green]{status_text}[/green] | Time: {latency:.0f}ms")
             else:
                 stats["reject"] += 1
-                rprint(f"⛔ Batch {batch_id[:8]}...: [red]REJECTED[/red] | Defect: {defect_class} | Time: {latency:.0f}ms")
-            
+                rprint(f"⛔ Batch {batch_id[:8]}...: [red]{status_text}[/red] | Time: {latency:.0f}ms")
+
+            # Visual Evidence Generation
+            try:
+                img = cv2.imread(str(img_path))
+                if img is not None:
+                    # Draw top banner
+                    h, w, _ = img.shape
+                    banner_height = int(h * 0.1) # 10% of height
+                    cv2.rectangle(img, (0, 0), (w, banner_height), color, -1)
+                    
+                    # Add text
+                    font_scale = min(w, h) / 1000 * 2.5
+                    thickness = max(1, int(font_scale * 2))
+                    text_size = cv2.getTextSize(status_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0]
+                    text_x = (w - text_size[0]) // 2
+                    text_y = (banner_height + text_size[1]) // 2
+                    
+                    # Text color: Black if Yellow/Green, White if Red? 
+                    # Yellow (0,255,255) is bright. Green (0,255,0) is bright. Red (0,0,255) is dark.
+                    # Let's use Black text for Yellow/Green and White for Red.
+                    text_color = (0, 0, 0) if color != (0, 0, 255) else (255, 255, 255)
+                    
+                    cv2.putText(img, status_text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, text_color, thickness)
+                    
+                    # Save
+                    if results_dir:
+                        save_path = results_dir / f"{batch_id}_{final_verdict}.jpg"
+                        cv2.imwrite(str(save_path), img)
+            except Exception as e:
+                rprint(f"[bold red]VISUALIZATION ERROR[/bold red]: {e}")
+
             # Simulate conveyor interval
             await asyncio.sleep(0.5)
 
@@ -116,6 +181,8 @@ async def simulate_conveyor(num_items: int = 10):
     rprint(f"Accepted        : [green]{stats['pass']}[/green]")
     rprint(f"Rejected        : [red]{stats['reject']}[/red]")
     rprint(f"Avg Latency     : {avg_time:.0f} ms")
+    if results_dir:
+        rprint(f"Visual Evidence : [blue]{results_dir}[/blue]")
     rprint("=" * 30)
 
 if __name__ == "__main__":
