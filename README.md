@@ -137,3 +137,38 @@ docker run -d -p 8080:8000 -e MODEL_PATH="models/burger_v1.pt" gfb-vision-eye
 ```bash
 docker run -d -p 8081:8000 -e MODEL_PATH="models/salad_v1.pt" gfb-vision-eye
 ```
+## S3 Storage Integration (MinIO)
+
+The service supports saving evidence images to S3-compatible storage (e.g., MinIO).
+
+### Setup
+1. **Start MinIO**:
+   ```bash
+   docker-compose up -d
+   ```
+   This starts MinIO on port 9000 and automatically creates the `gfb-quality-evidence` bucket.
+
+2. **Configuration**:
+   Ensure `.env` has the S3 credentials (defaulted to local MinIO in `.env.example`).
+
+3. **Usage**:
+   Use `app.services.s3_client` to upload images asynchronously.
+
+## Hardware Integration (NVIDIA Jetson)
+
+The service includes a Hardware Abstraction Layer for GPIO triggers.
+- **Mode Auto-detection**:
+  - **Jetson**: Uses `Jetson.GPIO` for real sensor interrupts.
+  - **Mac/Windows**: Uses `MOCK` mode (simulation).
+
+### Wiring (Jetson)
+- **Input (Photo Sensor)**: Pin 12 (Board) / GPIO 18 (BCM) - *Configurable*
+- **Output (Pneumo Pusher)**: Pin 18 (Board) - *Configurable*
+
+### Simulation API
+You can simulate a sensor trigger without hardware via API:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/trigger/simulate
+```
+This triggers the full pipeline: Capture -> Inference -> Verdict -> Action (Pusher).

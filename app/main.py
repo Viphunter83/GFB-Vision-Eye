@@ -18,9 +18,16 @@ async def lifespan(app: FastAPI):
         logger.info("Model loaded successfully.")
     except Exception as e:
         logger.error(f"Failed to load model: {e}")
-        # We might want to exit here if model is critical, or just log
+
+    # Start Hardware Trigger Listener
+    from app.services.hardware_trigger import get_trigger_listener
+    trigger_service = get_trigger_listener()
+    await trigger_service.start()
+    
     yield
-    # Clean up resources if needed
+    
+    # Clean up resources
+    await trigger_service.stop()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
