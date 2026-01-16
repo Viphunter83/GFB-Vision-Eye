@@ -7,13 +7,16 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     
     # Model Configuration
-    MODEL_PATH: str = "models/yolo11n.pt"
+    MODEL_PATH: str = "models/yolo26n.pt"
     CONFIDENCE_THRESHOLD: float = 0.5
     IOU_THRESHOLD: float = 0.45
     
     # Server Configuration
     HOST: str = "0.0.0.0"
     PORT: int = 8080
+
+    # integrations
+    MAIN_SYSTEM_WEBHOOK_URL: Optional[str] = None
 
     # S3 Configuration
     S3_ENDPOINT_URL: str = "http://localhost:9000"

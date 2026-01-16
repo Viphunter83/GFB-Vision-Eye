@@ -13,6 +13,8 @@ class ModelInference:
         start_time = time.time()
         
         # Run inference
+        # YOLO26/v10+ are End-to-End (NMS-free), so we rely on model output directly.
+        # No additional NMS post-processing needed here beyond what Ultralytics handles.
         results = self.model.predict(
             source=image, 
             conf=settings.CONFIDENCE_THRESHOLD,
